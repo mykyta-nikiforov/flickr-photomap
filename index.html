@@ -7,9 +7,8 @@
   <meta name="viewport" content='initial-scale=1,maximum-scale=1,user-scalable=no' />
 
   <script src="myscript.js"></script>
-  <script src='https://api.mapbox.com/mapbox-gl-js/v0.39.1/mapbox-gl.js'></script>
-  <script src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-language/v0.9.0/mapbox-gl-language.js'></script>
-  <link href='https://api.mapbox.com/mapbox-gl-js/v0.39.1/mapbox-gl.css' rel='stylesheet' />
+  <script src='https://api.tiles.mapbox.com/mapbox-gl-js/v0.54.0/mapbox-gl.js'></script>
+  <link href='https://api.tiles.mapbox.com/mapbox-gl-js/v0.54.0/mapbox-gl.css' rel='stylesheet' />
   <link rel="stylesheet" type="text/css" href="style.css">
 </head>
 
@@ -25,7 +24,7 @@
   <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibmlraWZvcm92cGl6emEiLCJhIjoiY2p2OW13dXhtMGNxbjRlcW0yc3VncGJ2MiJ9.RZyq7kG0s6InL05_CpEbUw';
     var  map = new mapboxgl.Map({
-      container: 'map',      
+      container: 'map',
       style: 'mapbox://styles/nikiforovpizza/cjvaqpe6g01541el1odvyqqw6',
       center: [30.3387, 46.1920],
       zoom: 13.7,
@@ -41,6 +40,68 @@
       },
       trackUserLocation: true
     }));
+
+    map.on('load', function(){
+      map.addSource('photos', {
+        type: 'geojson',
+        data: 'https://raw.githubusercontent.com/nikita-nikiforov/flickr-photomap/develop/photos.json',
+        cluster: true,
+        clusterMaxZoom: 14,
+        clusterRadius: 50
+      });
+      map.addLayer({
+        id: "clusters",
+        type: "circle",
+        source: "photos",
+        filter: ["has", "point_count"],
+        paint: {
+            "circle-color": [
+              "step",
+              ["get", "point_count"],
+              "#51bbd6",
+              20,
+              "#f1f075",
+              50,
+              "#f28cb1"
+            ],
+            "circle-radius": [
+              "step",
+              ["get", "point_count"],
+              20,
+              100,
+              30,
+              750,
+              40
+            ]
+          }
+        });
+
+      map.addLayer({
+        id: "unclustered-point",
+        type: "circle",
+        source: "photos",
+        filter: ["!", ["has", "point_count"]],
+        paint: {
+          "circle-color": "#11b4da",
+          "circle-radius": 10,
+          "circle-stroke-width": 1,
+          "circle-stroke-color": "#fff"
+        }
+      });
+
+      map.on('click', 'clusters', function (e) {
+        var features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] });
+        console.log(features);
+        var clusterId = features[0].properties.cluster_id,
+        point_count = features[0].properties.point_count,
+        clusterSource = map.getSource('photos');
+
+        clusterSource.getClusterLeaves(clusterId, point_count, 0, function(err, features){
+          console.log("Clustered features:", features)
+        });
+      });
+    });
+
   </script>
 </body>
 
