@@ -13,21 +13,15 @@
 </head>
 
 <body>
-  <!-- <div class='sidebar'>
-    <div class='heading'>
-      <h1>Локації:</h1>
-      <div id='listings' class='listings'></div>
-    </div>
-  </div> -->
   <div id='map' class='map'></div>
 
   <script>
     mapboxgl.accessToken = 'pk.eyJ1IjoibmlraWZvcm92cGl6emEiLCJhIjoiY2p2OW13dXhtMGNxbjRlcW0yc3VncGJ2MiJ9.RZyq7kG0s6InL05_CpEbUw';
-    var  map = new mapboxgl.Map({
+    var map = new mapboxgl.Map({
       container: 'map',
       style: 'mapbox://styles/nikiforovpizza/cjvaqpe6g01541el1odvyqqw6',
-      center: [30.3387, 46.1920],
-      zoom: 13.7,
+      center: [20.96, 49.12],
+      zoom: 2,
 
       bearingSnap: 7
     });
@@ -41,7 +35,7 @@
       trackUserLocation: true
     }));
 
-    map.on('load', function(){
+    map.on('load', function () {
       map.addSource('photos', {
         type: 'geojson',
         data: 'https://raw.githubusercontent.com/nikita-nikiforov/flickr-photomap/develop/photos.json',
@@ -55,26 +49,26 @@
         source: "photos",
         filter: ["has", "point_count"],
         paint: {
-            "circle-color": [
-              "step",
-              ["get", "point_count"],
-              "#51bbd6",
-              20,
-              "#f1f075",
-              50,
-              "#f28cb1"
-            ],
-            "circle-radius": [
-              "step",
-              ["get", "point_count"],
-              20,
-              100,
-              30,
-              750,
-              40
-            ]
-          }
-        });
+          "circle-color": [
+            "step",
+            ["get", "point_count"],
+            "#51bbd6",
+            20,
+            "#f1f075",
+            50,
+            "#f28cb1"
+          ],
+          "circle-radius": [
+            "step",
+            ["get", "point_count"],
+            20,
+            100,
+            30,
+            750,
+            40
+          ]
+        }
+      });
 
       map.addLayer({
         id: "unclustered-point",
@@ -91,17 +85,60 @@
 
       map.on('click', 'clusters', function (e) {
         var features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] });
-        console.log(features);
         var clusterId = features[0].properties.cluster_id,
-        point_count = features[0].properties.point_count,
-        clusterSource = map.getSource('photos');
+          point_count = features[0].properties.point_count,
+          clusterSource = map.getSource('photos');
 
-        clusterSource.getClusterLeaves(clusterId, point_count, 0, function(err, features){
-          console.log("Clustered features:", features)
+        clusterSource.getClusterLeaves(clusterId, point_count, 0, function (err, features) {
+          console.log("Clustered features:", features);
+          var coordinates = features[0].geometry.coordinates.slice();
+
+          // Ensure that if the map is zoomed out such that multiple
+          // copies of the feature are visible, the popup appears
+          // over the copy being pointed to.
+          while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+            coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+          }
+
+          var popup = new mapboxgl.Popup()
+            .setLngLat(coordinates)
+            .setHTML(buildPopupHtml(features[0]))
+            .setMaxWidth(290)
+            .addTo(map);
         });
       });
+
+      map.on('zoom', function (e) {
+        var elements = document.getElementsByClassName('mapboxgl-popup');
+
+        Array.from(elements).forEach((element) => {
+          element.style.display = 'none';
+        })
+      })
+
+
     });
 
+    function buildPopupHtml(feature) {
+      var title = feature.properties.title;
+      var url = feature.properties.url;
+      var photoUrl = feature.properties.photoUrl;
+
+      var html = '<a href=\"' + url + '\" target=\"_blank\"><strong>' + title + '</strong></a><p><img width=\"270\" src=\"' + photoUrl + '\"></p>';
+      return html;
+    }
+
+    map.on('click', 'unclustered-point', function (e) {
+      var coordinates = e.features[0].geometry.coordinates.slice();
+      while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+        coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+      };
+      var popup = new mapboxgl.Popup()
+        .setLngLat(coordinates)
+        .setHTML(buildPopupHtml(e.features[0]))
+        .setMaxWidth(400)
+        .addTo(map);
+    })
   </script>
 </body>
 
